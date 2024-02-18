@@ -182,6 +182,8 @@
     <ClCompile Include="src\AlyssaDefinitions.cpp" />
     <ClCompile Include="src\AlyssaLogging.cpp" />
     <ClCompile Include="src\AlyssaTester.cpp" />
+    <ClCompile Include="src\AlyssaThread.cpp" />
+    <ClCompile Include="src\PollenTemporary.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resource.h" />
@@ -195,6 +197,7 @@
     <ClInclude Include="src/external/subprocess.h" />
     <ClInclude Include="src\AlyssaLocalization.h" />
     <ClInclude Include="src\AlyssaTester.h" />
+    <ClInclude Include="src\PollenTemporary.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Alyssa.rc" />

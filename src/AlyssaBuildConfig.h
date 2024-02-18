@@ -4,22 +4,22 @@
 	#error C++17 compatible compiler is required.
 #endif
 // Define that if this code is of another branch.
-//#define branch "polling"
+#define branch "Pollen"
 
 // Compile with SSL support
-#define Compile_WolfSSL
+//#define Compile_WolfSSL
 
 // HTTP/2 support
-#define Compile_H2
+//#define Compile_H2
 #if defined Compile_H2 && !defined Compile_WolfSSL
 	#error SSL is required for HTTP/2 support.
 #endif
 
 // CGI execution support
-#define Compile_CGI
+//#define Compile_CGI
 
 // Custom actions support
-#define Compile_CustomActions
+//#define Compile_CustomActions
 
 // Directory indexes support
 #define Compile_DirIndex
@@ -31,4 +31,4 @@
 #define Compile_locales
 
 // Compile with zlib for gz encoding support.
-#define Compile_zlib
+//#define Compile_zlib

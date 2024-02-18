@@ -256,7 +256,7 @@ int8_t AlyssaHTTP::parseHeader(clientInfo* cl, char* buf, int sz) {
 							ServerHeadersM(cl, 403); return -3;
 						}
 						else if (VirtualHosts[i].Type == 3) { // "Hang-up" virtual host
-							closesocket(cl->Sr->sock); 
+							shutdown(cl->Sr->sock, 2);
 							if (logging) AlyssaLogging::literal(cl->Sr->clhostname + " -> " + VirtualHosts[i].Hostname + cl->RequestPath + " rejected and hung-up.", 'C');
 							return -3;// No clean shutdown or anything, we just say fuck off to client.
 						}
@@ -285,7 +285,7 @@ int8_t AlyssaHTTP::parseHeader(clientInfo* cl, char* buf, int sz) {
 				cl->_RequestPath = std::filesystem::u8path(htroot + cl->RequestPath);
 			}
 			// Check if client connects with SSL or not if HSTS is enabled
-			if (HSTS && !cl->Sr->ssl) return -4; // client doesn't use SSL.
+			//if (HSTS && !cl->Sr->ssl) return -4; // client doesn't use SSL.
 
 			return cl->RequestTypeInt;
 		}
@@ -325,7 +325,7 @@ int8_t AlyssaHTTP::parseHeader(clientInfo* cl, char* buf, int sz) {
 				case 'A':
 					if (!strncmp(&buf[pos + 1], "uthorization", 12)) {
 						if (strncmp(&buf[pos + 15], "Basic", 5)) { cl->RequestTypeInt = -1; cl->flags |= 2; continue; } // Either auth is not basic or header is invalid as a whole. 
-						pos += 21; cl->auth.resize(i - pos); memcpy(&cl->auth[0], &buf[pos], i - pos); cl->auth = base64_decode(cl->auth);
+						//pos += 21; cl->auth.resize(i - pos); memcpy(&cl->auth[0], &buf[pos], i - pos); cl->auth = base64_decode(cl->auth);
 					}
 #ifdef Compile_zlib
 					else if (!strncmp(&buf[pos + 1], "ccept-", 6)) {

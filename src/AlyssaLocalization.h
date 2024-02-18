@@ -84,10 +84,12 @@ static const wchar_t* LocaleTable[][STR_END] = {
 		L"invalid htroot path specified on config or path is inaccessible. Trying to create the directory...",
 		L"failed to create the folder. Quitting",
 		L"cannot open log file, logging is disabled.",
+#ifdef Compile_WolfSSL
 		L"WolfSSL: ",
 		L"internal error occurred with SSL (wolfSSL_CTX_new error), SSL is disabled.",
 		L"failed to load SSL private key file, SSL is disabled.",
 		L"failed to load SSL certificate file, SSL is disabled.",
+#endif
 		L"Can't Initialize winsock! Quitting.",
 		L"Socket creation failed! Quitting.",
 		// 20
@@ -144,10 +146,12 @@ static const wchar_t* LocaleTable[][STR_END] = {
 		L"geçersiz veya erişilemez bir htroot dizini belirlendi. Dizin oluşturulmaya çalışılıyor...",
 		L"dizin oluşturma başarısız oldu, çıkılıyor.",
 		L"günlük dosyası açılamadı, günlük devre dışı.",
+#ifdef Compile_WolfSSL
 		L"WolfSSL: ",
 		L"SSL ile bir içsel hata oldu (wolfSSL_CTX_new error), SSL devre dışı.",
 		L"SSL gizli anahtar dosyasını yükleme başarısız oldu, SSL devre dışı.",
 		L"SSL sertifika dosyasını yükleme başarısız oldu, SSL devre dışı.",
+#endif
 		L"Winsock başlatma başarısız oldu, çıkılıyor.",
 		L"Soket oluşturma başarısız oldu, çıkılıyor.",
 		// 20
