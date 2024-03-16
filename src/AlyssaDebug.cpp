@@ -110,6 +110,7 @@ void DebugNode(clientInfo* cl) {
 	else if (!strncmp(&cl->RequestPath[7], "Crash/", 6)) {
 		std::terminate();
 	}
+#ifdef Compile_CGI
 	else if (!strncmp(&cl->RequestPath[7], "DummyCGI", 8)) {
 		if (cl->RequestPath[15] == '/') {
 			SelfExecCGI(execpath.c_str(), cl, 0);
@@ -121,6 +122,7 @@ void DebugNode(clientInfo* cl) {
 			h.StatusCode = 400; AlyssaHTTP::ServerHeaders(&h, cl); return;
 		}
 	}
+#endif
 #ifdef Compile_zlib
 	else if (!strncmp(&cl->RequestPath[7], "GzEncodeTest/", 6)) {// it's actually deflate, not gzip.
 		const char file[] = "<html><head><title>Encode Testing</title></head><body><h1>This page is sent with gzip encoding.</h1><br>If you can see this page, then gzip encoding is working.</body></html>";

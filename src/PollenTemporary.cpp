@@ -1,4 +1,15 @@
 #include "PollenTemporary.h"
+
+std::deque<thread> thrArray;
+std::vector<pollfd> pollArray;
+std::deque<unsigned char> sockType;
+std::deque<std::thread> _thrArray;
+std::deque<std::atomic_bool> threadLock;
+std::deque<_clientInfo> clArray;
+short srvSocks;//amount of server listening sockets.
+bool srvRunning = 1;//if server is running, it's shutting down if false.
+unsigned int pollcnt;//amount of total sockets.
+
 namespace pAlyssaHTTP {
 	void ServerHeaders(HeaderParameters* h, requestInfo* r) {
 		std::string ret = "HTTP/1.1 "; ret.reserve(512);
@@ -498,7 +509,7 @@ namespace pAlyssaHTTP {
 			filesize = std::filesystem::file_size(r->_RequestPath); h.MimeType = fileMime(r->RequestPath);
 			h.ContentLength = filesize; h.LastModified = LastModify(r->_RequestPath); h.HasRange = 1;
 
-			char* buf = new char[32768]; h._Crc = FileCRC(file, filesize, buf, 32768);
+			h._Crc = FileCRC(file, filesize, r->parent->t->buf, 32768);
 
 			if (r->rstart || r->rend) { // Range request
 				// Check if file client requests is same as one we have.
@@ -538,9 +549,13 @@ namespace pAlyssaHTTP {
 			if (filesize < 2048) r->hasEncoding = 0; // Deflating really small things will actually inflate it beyond original size, don't compress if file is smaller than 2048b
 			h.hasEncoding = r->hasEncoding;
 #endif //Compile_zlib
+
 			ServerHeaders(&h, r);
-			if (r->method == 5) {
-				fclose(file); delete[] buf; if (r->close) shutdown(r->parent->pf->fd, 2); return;
+			if (r->method == 5) {// if head request (or 304)
+				fclose(file); if (r->close) shutdown(r->parent->pf->fd, 2); return;
+			}
+			else {
+				r->f = file; r->parent->pf->events = POLLOUT; r->sz = filesize;
 			}
 		}
 		else {//File open failed.

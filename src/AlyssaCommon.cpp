@@ -1,5 +1,6 @@
 #ifndef AlyssaHeader
 #include "Alyssa.h"
+#include "PollenTemporary.h"
 #endif // !AlyssaHeader
 
 using std::cout;
@@ -33,9 +34,10 @@ int AlyssaInit() {
 		}
 		listen(listening, SOMAXCONN);
 		//_SocketArray[i].fd=listening; _SocketArray[i].events = POLLIN | POLLPRI | POLLRDBAND | POLLRDNORM;
-		_SocketArray.emplace_back(pollfd{ listening, POLLRDNORM, 0 });
-		_SockType.emplace_back(0);
+		pollArray.emplace_back(pollfd{ listening, POLLRDNORM, 0 });
+		sockType.emplace_back(32);
 	}
+	srvSocks = port.size();
 
 	// Create sockets: SSL, IPv4
 #ifdef Compile_WolfSSL
@@ -68,11 +70,13 @@ int AlyssaInit() {
 			_SocketArray[_SocketArray.size() - 1].fd = listening; _SocketArray[_SocketArray.size() - 1].events = POLLRDNORM;
 			_SockType.emplace_back(1);
 		}
+		srvSocks += SSLport.size();
 	}
 #endif // Compile_WolfSSL
 
 	// Create sockets: plain, IPv6
 	if (EnableIPv6) {
+		srvSocks *= 2;
 		for (size_t i = 0; i < port.size(); i++) {
 			// Create sockets
 			SOCKET listening = socket(AF_INET6, SOCK_STREAM, 0);
@@ -100,9 +104,9 @@ int AlyssaInit() {
 				if (logging) AlyssaLogging::literal("Failed to reserve port6 " + port[i], 'E');
 				return -2;
 			}
-			listen(listening, SOMAXCONN); _SocketArray.emplace_back();
-			_SocketArray[_SocketArray.size() - 1].fd = listening; _SocketArray[_SocketArray.size() - 1].events = POLLRDNORM;
-			_SockType.emplace_back(2);
+			listen(listening, SOMAXCONN);
+			pollArray.emplace_back(pollfd{ listening, POLLRDNORM, 0 });
+			sockType.emplace_back(96);
 		}
 
 		// Create sockets: SSL, IPv6
@@ -146,10 +150,10 @@ int AlyssaInit() {
 }
 
 void AlyssaCleanListening() {
-	for (size_t i = 0; i < _SocketArray.size(); i++) {
-		closesocket(_SocketArray[i].fd);
+	for (size_t i = 0; i < pollArray.size(); i++) {
+		closesocket(pollArray[i].fd);
 	}
-	_SocketArray.clear(); _SockType.clear();
+	pollArray.clear(); sockType.clear();
 }
 
 void Send(string* payload, SOCKET sock, WOLFSSL* ssl, bool isText) {

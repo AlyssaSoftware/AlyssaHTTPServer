@@ -23,6 +23,7 @@
 
 
 #include "Alyssa.h"
+#include "PollenTemporary.h"
 using std::string; using std::cout;
 #ifndef _WIN32
 using std::terminate;
@@ -30,34 +31,31 @@ using std::terminate;
 std::ofstream Log; std::mutex logMutex; std::mutex ConsoleMutex;
 std::deque<VirtualHost> VirtualHosts;
 
-std::vector<pollfd> _SocketArray;
-std::vector<int8_t> _SockType;
-
 #ifdef AlyssaTesting
 int ServerEntry(int argc, char* argv[]) {
 #else
 int main(int argc, char* argv[]) {//This is the main server function that fires up the server and listens for connections.
-	
+
 #endif
 	//Set the locale and stdout to Unicode
 	fwide(stdout, 0); setlocale(LC_ALL, "");
-    // Do platform specific operations
+	// Do platform specific operations
 #ifndef _WIN32
 	signal(SIGPIPE, sigpipe_handler); // Workaround for some *nix killing the server when server tries to access an socket which is closed by remote peer.
-    if(geteuid()==0) ConsoleMsg(1,"Server: ","Server is running as root, this is not necessary. "
-                                  "Only use if you know what are you doing. "
-                                  "(There's also ways for listening port 80/443 without root.)");
+	if (geteuid() == 0) ConsoleMsg(1, "Server: ", "Server is running as root, this is not necessary. "
+		"Only use if you know what are you doing. "
+		"(There's also ways for listening port 80/443 without root.)");
 #endif
 #ifdef _WIN32
 	if (ColorOut) AlyssaNtSetConsole(); // Set console colors on Windows NT
 #endif
 	//Read the config file
-	if(!Config::initialRead()){
+	if (!Config::initialRead()) {
 		if (argc < 2) //ConsoleMsg(0, "Config: ", "cannot open Alyssa.cfg, using default values..");// Don't output that if there is command line arguments.
 			ConsoleMsg(0, STR_CONFIG, STR_CANNOT_OPEN_CONFIG);
 	}
 	//Parse the command line arguments
-	if (argc>1) {
+	if (argc > 1) {
 		char _ret = ParseCL(argc, argv);
 		if (_ret != 1) return _ret;
 	}
@@ -71,7 +69,7 @@ int main(int argc, char* argv[]) {//This is the main server function that fires 
 		execpath = argv[0];
 	}
 #endif
-	
+
 	// Try if htroot is accessible, else try to create it, quit if failed.
 	try {
 		for (const auto& asd : std::filesystem::directory_iterator(std::filesystem::u8path(htroot))) {
@@ -95,8 +93,8 @@ int main(int argc, char* argv[]) {//This is the main server function that fires 
 			ConsoleMsg(0, STR_SERVER, STR_LOG_FAIL); logging = 0;
 		}
 		else {
-			Log << "----- Alyssa HTTP Server Log File - Logging started at: " << currentTime() 
-				<< " - Version: " << version 
+			Log << "----- Alyssa HTTP Server Log File - Logging started at: " << currentTime()
+				<< " - Version: " << version
 #ifdef _WIN32
 				<< " on Windows"
 #endif
@@ -111,21 +109,21 @@ int main(int argc, char* argv[]) {//This is the main server function that fires 
 		wolfSSL_Init();
 		if ((ctx = wolfSSL_CTX_new(wolfSSLv23_server_method())) == NULL) {
 			ConsoleMsg(0, STR_WOLFSSL, STR_SSL_INTFAIL);
-			if (logging) AlyssaLogging::literal("WolfSSL: internal error occurred with SSL (wolfSSL_CTX_new error), SSL is disabled.",'E');
+			if (logging) AlyssaLogging::literal("WolfSSL: internal error occurred with SSL (wolfSSL_CTX_new error), SSL is disabled.", 'E');
 			enableSSL = 0; goto SSLEnd;
 		}
 		if (wolfSSL_CTX_use_PrivateKey_file(ctx, SSLkeypath.c_str(), SSL_FILETYPE_PEM) != SSL_SUCCESS) {
-			ConsoleMsg(0, STR_WOLFSSL, STR_SSL_KEYFAIL); 
-			if (logging) AlyssaLogging::literal("WolfSSL: failed to load SSL private key file, SSL is disabled.",'E');
+			ConsoleMsg(0, STR_WOLFSSL, STR_SSL_KEYFAIL);
+			if (logging) AlyssaLogging::literal("WolfSSL: failed to load SSL private key file, SSL is disabled.", 'E');
 			enableSSL = 0; goto SSLEnd;
 		}
 		if (wolfSSL_CTX_use_certificate_file(ctx, SSLcertpath.c_str(), SSL_FILETYPE_PEM) != SSL_SUCCESS) {
-			ConsoleMsg(0, STR_WOLFSSL, STR_SSL_CERTFAIL); 
-			if (logging) AlyssaLogging::literal("WolfSSL: failed to load SSL certificate file, SSL is disabled.",'E');
+			ConsoleMsg(0, STR_WOLFSSL, STR_SSL_CERTFAIL);
+			if (logging) AlyssaLogging::literal("WolfSSL: failed to load SSL certificate file, SSL is disabled.", 'E');
 			enableSSL = 0; goto SSLEnd;
 		}
 	}
-	SSLEnd:
+SSLEnd:
 #endif // Compile_WolfSSL
 
 #ifdef _WIN32
@@ -138,7 +136,7 @@ int main(int argc, char* argv[]) {//This is the main server function that fires 
 #endif
 
 	if (int ret = AlyssaInit()) return ret;
-	
+
 	// After setting sockets successfully, do the initial setup of rest of server
 	SetPredefinedHeaders(); // Define the predefined headers that will used until lifetime of executable and will never change.
 #ifdef Compile_CGI
@@ -154,7 +152,7 @@ int main(int argc, char* argv[]) {//This is the main server function that fires 
 		VirtualHost Element; VirtualHosts.emplace_back(Element);// Leave a space for default host.
 		std::ifstream VHostFile(VHostFilePath);
 		string hostname, type, value;
-		if (!VHostFile) { 
+		if (!VHostFile) {
 			ConsoleMsg(0, STR_VHOST, STR_VHOST_FAIL); HasVHost = 0;
 			AlyssaLogging::literal("Virtual hosts: cannot open virtual hosts config file", 'E');
 		}
@@ -185,7 +183,7 @@ int main(int argc, char* argv[]) {//This is the main server function that fires 
 			}
 			else if (type == "forbid") Element.Type = 2;
 			else if (type == "hangup") Element.Type = 3;
-VHostAdd:
+		VHostAdd:
 			if (hostname == "default") VirtualHosts[0] = Element;
 			else VirtualHosts.emplace_back(Element);
 		}
@@ -198,11 +196,11 @@ VHostAdd:
 	// Warning message for indicating these builds are work-in-progress builds and not recommended.
 	ConsoleMsg(1, STR_SERVER, STR_BRANCH);
 #endif
-	
+
 	// Output server version, ports etc.
 	ConsoleMsgLiteral(STR_SERVERMAIN); std::cout << version;
 	if (HasVHost) { std::cout << " | " << VirtualHosts.size(); ConsoleMsgLiteral(STR_VHOSTNUM); }
-	
+
 	std::cout << std::endl; ConsoleMsgLiteral(STR_LISTENINGON); std::cout << " HTTP: ";
 	for (size_t i = 0; i < port.size() - 1; i++) std::cout << port[i] << ", ";
 	std::cout << port[port.size() - 1];
@@ -219,21 +217,160 @@ VHostAdd:
 	// Timestamp of when last polling error occured and amount of it in interval of 10 secs.
 	size_t lastTrash = getTime(); uint8_t trashCount = 0;
 
-	while (true) {
-	/*
-		You point to the trail where the blossoms have fallen
-		But all I can see is the poll()en, fucking me up
-		Everything moves too fast but I've
-		Been doing the same thing a thousand times over
-		But I'm brought to my knees by the clover
-		And it feels like, it's just the poll()en
-	*/
+	unsigned int events = 0; unsigned int pollcnt = srvSocks; _clientInfo c;
 
-		int ActiveSocket = poll(&_SocketArray[0],_SocketArray.size(), -1);
-		if (ActiveSocket < 0) {// Error while polling.
+	while (srvRunning) {
+		/*
+			You point to the trail where the blossoms have fallen
+			But all I can see is the poll()en, fucking me up
+			Everything moves too fast but I've
+			Been doing the same thing a thousand times over
+			But I'm brought to my knees by the clover
+			And it feels like, it's just the poll()en
+		*/
+
+		//		int ActiveSocket = poll(&_SocketArray[0],_SocketArray.size(), -1);
+		//		if (ActiveSocket < 0) {// Error while polling.
+		//			if (getTime() - lastTrash < 10000) {
+		//				trashCount++;
+		//				if (trashCount >= 10) {
+		//					ConsoleMsg(0, STR_SERVER, STR_ERR_SOCKS_TRASHED2); if (logging) AlyssaLogging::literal("Too much errors with list. sockets. Terminating...", 'E');
+		//				}
+		//				else trashCount = 1;
+		//
+		//				lastTrash = getTime();
+		//			}
+		//			ConsoleMsg(0, STR_SERVER, STR_ERR_SOCKS_TRASHED); if (logging) AlyssaLogging::literal("Listening sockets trashed. Reinitializing...", 'E');
+		//			AlyssaCleanListening(); ActiveSocket = AlyssaInit();
+		//			if (ActiveSocket) {
+		//				if (logging) AlyssaLogging::literal("Failed to reinitialize sockets, terminating...", 'E');
+		//				return ActiveSocket;
+		//			} 
+		//			break;
+		//		}
+		//
+		//		for (int i = 0; i < _SocketArray.size(); i++) {
+		//			if (_SocketArray[i].revents == POLLRDNORM) {
+		//#ifdef Compile_WolfSSL
+		//				if (_SockType[i] & 1) {// SSL Port
+		//					_Surrogate* sr = new _Surrogate;
+		//					char host[NI_MAXHOST] = { 0 }; // Client's IP address
+		//					if (_SockType[i] & 2) {// IPv6 socket
+		//						sockaddr_in6 client;
+		//#ifndef _WIN32
+		//						unsigned int clientSize = sizeof(client);
+		//#else
+		//						int clientSize = sizeof(client);
+		//#endif
+		//						sr->sock = accept(_SocketArray[i].fd, (sockaddr*)&client, &clientSize);
+		//						inet_ntop(AF_INET6, &client.sin6_addr, host, NI_MAXHOST);
+		//					}
+		//					else {// IPv4 socket
+		//						sockaddr_in client;
+		//#ifndef _WIN32
+		//						unsigned int clientSize = sizeof(client);
+		//#else
+		//						int clientSize = sizeof(client);
+		//#endif						
+		//						sr->sock = accept(_SocketArray[i].fd, (sockaddr*)&client, &clientSize);
+		//						inet_ntop(AF_INET, &client.sin_addr, host, NI_MAXHOST);
+		//					}
+		//					sr->clhostname = host;
+		//					WOLFSSL* ssl;
+		//					if ((ssl = wolfSSL_new(ctx)) == NULL) {
+		//						std::terminate();
+		//					}
+		//					wolfSSL_set_fd(ssl, sr->sock);
+		//#ifdef Compile_H2
+		//					if (EnableH2) {
+		//						wolfSSL_UseALPN(ssl, alpn, sizeof alpn, WOLFSSL_ALPN_FAILED_ON_MISMATCH);
+		//					}
+		//#endif
+		//					if (wolfSSL_accept(ssl) != SSL_SUCCESS) {
+		//						wolfSSL_free(ssl);
+		//						closesocket(sr->sock);
+		//					}
+		//
+		//					else {
+		//						sr->ssl = ssl;
+		//#ifdef Compile_H2
+		//						if (EnableH2)
+		//							wolfSSL_ALPN_GetProtocol(ssl, &sr->ALPN,
+		//								&sr->ALPNSize);
+		//						else
+		//							sr->ALPN = h1;
+		//						if (sr->ALPN == NULL) sr->ALPN = h1;
+		//						if (!strcmp(sr->ALPN, "h2")) { std::thread t = std::thread(AlyssaHTTP2::ClientConnection, sr); t.detach(); }
+		//						else { std::thread t = std::thread(AlyssaHTTP::clientConnection, sr); t.detach(); }
+		//#else
+		//						std::thread t = std::thread(AlyssaHTTP::clientConnection, sr); t.detach();
+		//#endif
+		//					}
+		//					break;
+		//				}
+		//				else {
+		//#endif
+		//					_Surrogate* sr = new _Surrogate;
+		//					char host[NI_MAXHOST] = { 0 }; // Client's IP address
+		//					if (_SockType[i] & 2) {// IPv6 socket
+		//						sockaddr_in6 client;
+		//#ifndef _WIN32
+		//						unsigned int clientSize = sizeof(client);
+		//#else
+		//						int clientSize = sizeof(client);
+		//#endif
+		//						sr->sock = accept(_SocketArray[i].fd, (sockaddr*)&client, &clientSize);
+		//						inet_ntop(AF_INET6, &client.sin6_addr, host, NI_MAXHOST);
+		//				}
+		//					else {// IPv4 socket
+		//						sockaddr_in client;
+		//#ifndef _WIN32
+		//						unsigned int clientSize = sizeof(client);
+		//#else
+		//						int clientSize = sizeof(client);
+		//#endif
+		//						sr->sock = accept(_SocketArray[i].fd, (sockaddr*)&client, &clientSize);
+		//						inet_ntop(AF_INET, &client.sin_addr, host, NI_MAXHOST);
+		//					}
+		//					sr->clhostname = host;
+		//					//std::thread t = std::thread(AlyssaHTTP::clientConnection, sr); t.detach();
+		//#pragma region pollen-main
+		//
+		//#pragma endregion
+		//
+		//					break;
+		//#ifdef Compile_WolfSSL
+		//				}
+		//#endif
+		//				ActiveSocket--; if(!ActiveSocket) break;
+		//			}
+		//			else if (_SocketArray[i].revents==(POLLERR | POLLNVAL)) {// Error while polling.
+		//				if (getTime() - lastTrash < 10000) {
+		//					trashCount++; 
+		//					if (trashCount >= 10) {
+		//						ConsoleMsg(0, STR_SERVER, STR_ERR_SOCKS_TRASHED2); if (logging) AlyssaLogging::literal("Too much errors with listening sockets. Terminating...", 'E');
+		//					}
+		//					else trashCount = 1;
+		//
+		//					lastTrash = getTime();
+		//				}
+		//				ConsoleMsg(0, STR_SERVER, STR_ERR_SOCKS_TRASHED); if (logging) AlyssaLogging::literal("Listening sockets trashed. Reinitializing...", 'E');
+		//				AlyssaCleanListening(); ActiveSocket = AlyssaInit(); 
+		//				if (ActiveSocket) { 
+		//					if (logging) AlyssaLogging::literal("Failed to reinitialize sockets, terminating...", 'E');
+		//					return ActiveSocket; }
+		//				break;
+		//			}
+		//		}
+		//
+		//		if (pollPeriod) Sleep(pollPeriod);
+		//	}
+
+		events = poll(pollArray.data(), pollcnt, -1);
+		if (events < 0) {// Error while polling.
 			if (getTime() - lastTrash < 10000) {
 				trashCount++;
-				if (trashCount >= 10) {
+				if (trashCount >= 3) {
 					ConsoleMsg(0, STR_SERVER, STR_ERR_SOCKS_TRASHED2); if (logging) AlyssaLogging::literal("Too much errors with list. sockets. Terminating...", 'E');
 				}
 				else trashCount = 1;
@@ -241,28 +378,26 @@ VHostAdd:
 				lastTrash = getTime();
 			}
 			ConsoleMsg(0, STR_SERVER, STR_ERR_SOCKS_TRASHED); if (logging) AlyssaLogging::literal("Listening sockets trashed. Reinitializing...", 'E');
-			AlyssaCleanListening(); ActiveSocket = AlyssaInit();
-			if (ActiveSocket) {
+			AlyssaCleanListening(); events = AlyssaInit();
+			if (events) {
 				if (logging) AlyssaLogging::literal("Failed to reinitialize sockets, terminating...", 'E');
-				return ActiveSocket;
-			} 
+				return events;
+			}
 			break;
 		}
-
-		for (int i = 0; i < _SocketArray.size(); i++) {
-			if (_SocketArray[i].revents == POLLRDNORM) {
-#ifdef Compile_WolfSSL
-				if (_SockType[i] & 1) {// SSL Port
-					_Surrogate* sr = new _Surrogate;
+		for (size_t i = 0; i < pollcnt; i++) {
+			if (pollArray[i].revents & POLLIN) {
+				SOCKET csock = INVALID_SOCKET;
+				if (i < srvSocks) {//listening socket.
 					char host[NI_MAXHOST] = { 0 }; // Client's IP address
-					if (_SockType[i] & 2) {// IPv6 socket
+					if (sockType[i] & 64) {// IPv6 socket
 						sockaddr_in6 client;
 #ifndef _WIN32
 						unsigned int clientSize = sizeof(client);
 #else
 						int clientSize = sizeof(client);
 #endif
-						sr->sock = accept(_SocketArray[i].fd, (sockaddr*)&client, &clientSize);
+						csock = accept(pollArray[i].fd, (sockaddr*)&client, &clientSize);
 						inet_ntop(AF_INET6, &client.sin6_addr, host, NI_MAXHOST);
 					}
 					else {// IPv4 socket
@@ -272,93 +407,46 @@ VHostAdd:
 #else
 						int clientSize = sizeof(client);
 #endif						
-						sr->sock = accept(_SocketArray[i].fd, (sockaddr*)&client, &clientSize);
+						csock = accept(pollArray[i].fd, (sockaddr*)&client, &clientSize);
 						inet_ntop(AF_INET, &client.sin_addr, host, NI_MAXHOST);
 					}
-					sr->clhostname = host;
-					WOLFSSL* ssl;
-					if ((ssl = wolfSSL_new(ctx)) == NULL) {
-						std::terminate();
-					}
-					wolfSSL_set_fd(ssl, sr->sock);
-#ifdef Compile_H2
-					if (EnableH2) {
-						wolfSSL_UseALPN(ssl, alpn, sizeof alpn, WOLFSSL_ALPN_FAILED_ON_MISMATCH);
-					}
-#endif
-					if (wolfSSL_accept(ssl) != SSL_SUCCESS) {
-						wolfSSL_free(ssl);
-						closesocket(sr->sock);
-					}
+					c.ip = host;
 
-					else {
-						sr->ssl = ssl;
-#ifdef Compile_H2
-						if (EnableH2)
-							wolfSSL_ALPN_GetProtocol(ssl, &sr->ALPN,
-								&sr->ALPNSize);
-						else
-							sr->ALPN = h1;
-						if (sr->ALPN == NULL) sr->ALPN = h1;
-						if (!strcmp(sr->ALPN, "h2")) { std::thread t = std::thread(AlyssaHTTP2::ClientConnection, sr); t.detach(); }
-						else { std::thread t = std::thread(AlyssaHTTP::clientConnection, sr); t.detach(); }
-#else
-						std::thread t = std::thread(AlyssaHTTP::clientConnection, sr); t.detach();
-#endif
-					}
-					break;
-				}
-				else {
-#endif
-					_Surrogate* sr = new _Surrogate;
-					char host[NI_MAXHOST] = { 0 }; // Client's IP address
-					if (_SockType[i] & 2) {// IPv6 socket
-						sockaddr_in6 client;
-#ifndef _WIN32
-						unsigned int clientSize = sizeof(client);
-#else
-						int clientSize = sizeof(client);
-#endif
-						sr->sock = accept(_SocketArray[i].fd, (sockaddr*)&client, &clientSize);
-						inet_ntop(AF_INET6, &client.sin6_addr, host, NI_MAXHOST);
-				}
-					else {// IPv4 socket
-						sockaddr_in client;
-#ifndef _WIN32
-						unsigned int clientSize = sizeof(client);
-#else
-						int clientSize = sizeof(client);
-#endif
-						sr->sock = accept(_SocketArray[i].fd, (sockaddr*)&client, &clientSize);
-						inet_ntop(AF_INET, &client.sin_addr, host, NI_MAXHOST);
-					}
-					sr->clhostname = host;
-					std::thread t = std::thread(AlyssaHTTP::clientConnection, sr); t.detach();
-					break;
 #ifdef Compile_WolfSSL
-				}
-#endif
-				ActiveSocket--; if(!ActiveSocket) break;
-			}
-			else if (_SocketArray[i].revents==(POLLERR | POLLNVAL)) {// Error while polling.
-				if (getTime() - lastTrash < 10000) {
-					trashCount++; 
-					if (trashCount >= 10) {
-						ConsoleMsg(0, STR_SERVER, STR_ERR_SOCKS_TRASHED2); if (logging) AlyssaLogging::literal("Too much errors with list. sockets. Terminating...", 'E');
+					if (sockType[i] & 128) {//SSL
+						WOLFSSL* ssl = NULL;
+						if(false){}
+						c.ssl = ssl;
 					}
-					else trashCount = 1;
-
-					lastTrash = getTime();
+#endif
+					// add client to array(s)
+					pollArray.emplace_back() = { csock, POLLIN, 0 };
+					c.pf = &pollArray[pollcnt]; c.type = sockType[i] ^ 32; 
+					clArray.emplace_back(c); sockType.emplace_back(sockType[i] ^ 32); pollcnt++;
 				}
-				ConsoleMsg(0, STR_SERVER, STR_ERR_SOCKS_TRASHED); if (logging) AlyssaLogging::literal("Listening sockets trashed. Reinitializing...", 'E');
-				AlyssaCleanListening(); ActiveSocket = AlyssaInit(); 
-				if (ActiveSocket) { 
-					if (logging) AlyssaLogging::literal("Failed to reinitialize sockets, terminating...", 'E');
-					return ActiveSocket; }
-				break;
+				else {//client socket
+					for (unsigned char k = 0; k < thrArray.size(); k++) {//Look for free threads
+						if (!threadLock[k]) {// Free thread found, hand work out to it and lock.
+							thrArray[k].shared[0] = i, thrArray[k].shared[1] = 1;
+							clArray[i].pf->events = 0; recv(clArray[i].pf->fd, thrArray[k].buf, 32768, 0);
+							threadLock[k] = 1; goto threadDone;
+						}
+					}
+				}
+threadDone:
+				events--; if (!events) break;
+			}
+			else if (pollArray[i].revents & POLLOUT) {
+				for (unsigned char k = 0; k < thrArray.size(); k++) {//Look for free threads
+					if (!threadLock[k]) {// Free thread found, hand work out to it and lock.
+						thrArray[k].shared[0] = i, thrArray[k].shared[1] = 2;
+						clArray[i].pf->events = 0; recv(clArray[i].pf->fd, thrArray[k].buf, 32768, 0);
+						threadLock[k] = 1; goto threadDone2;
+					}
+				}
+threadDone2:
+				events--; if (!events) break;
 			}
 		}
-
-		if (pollPeriod) Sleep(pollPeriod);
 	}
 }

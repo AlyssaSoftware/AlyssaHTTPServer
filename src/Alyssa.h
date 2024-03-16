@@ -272,8 +272,6 @@ extern std::string PredefinedHeaders;
 #ifdef Compile_H2
 extern std::string PredefinedHeadersH2; extern short int PredefinedHeadersH2Size;
 #endif // Compile_H2
-extern std::vector<pollfd> _SocketArray;
-extern std::vector<int8_t> _SockType;
 
 // Declaration of config variables
 extern bool isCRLF;
@@ -393,5 +391,7 @@ static const char* MsgTypeStr[] = { "Error: ","Warning: ","Info: " };
 #ifdef Compile_H2
 #include "AlyssaH2.h"
 #endif
+
+#define bufSize 32768
 
 #endif // AlyssaHeader
