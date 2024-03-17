@@ -3,12 +3,14 @@
 
 void AlyssaThread(int num) {
 	char* buf = thrArray[num].buf;
+	int amk = thrArray[num].shared[0];
 #define cl clArray[thrArray[num].shared[0]]
 #define type thrArray[num].shared[1]
 	while (true) {
 		// Wait for a new client
 		while (!threadLock[num]) Sleep(50);
 		// Handle the new client
+		amk = thrArray[num].shared[0];
 		cl.t = &thrArray[num];
 		switch (type) {
 			case 1: 
@@ -63,7 +65,8 @@ void AlyssaThread(int num) {
 void AlyssaInitThreads() {
 	thread t;
 	for (size_t i = 0; i < 4; i++) {
-		t.buf = new char[32768]; t.shared = new unsigned int[3];
+		t.buf = new char[32768]; memset(t.buf, 0, 32768);
+		t.shared = new unsigned int[3]; memset(t.buf, 0, 3 * 4);
 		thrArray.emplace_back(t); _thrArray.emplace_back(AlyssaThread, i);
 		threadLock.emplace_back(0);
 	}

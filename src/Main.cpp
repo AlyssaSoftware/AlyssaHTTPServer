@@ -136,6 +136,7 @@ SSLEnd:
 #endif
 
 	if (int ret = AlyssaInit()) return ret;
+	AlyssaInitThreads();
 
 	// After setting sockets successfully, do the initial setup of rest of server
 	SetPredefinedHeaders(); // Define the predefined headers that will used until lifetime of executable and will never change.
@@ -218,6 +219,7 @@ SSLEnd:
 	size_t lastTrash = getTime(); uint8_t trashCount = 0;
 
 	unsigned int events = 0; unsigned int pollcnt = srvSocks; _clientInfo c;
+	clArray.resize(srvSocks);
 
 	while (srvRunning) {
 		/*
@@ -366,6 +368,7 @@ SSLEnd:
 		//		if (pollPeriod) Sleep(pollPeriod);
 		//	}
 
+
 		events = poll(pollArray.data(), pollcnt, -1);
 		if (events < 0) {// Error while polling.
 			if (getTime() - lastTrash < 10000) {
@@ -410,7 +413,7 @@ SSLEnd:
 						csock = accept(pollArray[i].fd, (sockaddr*)&client, &clientSize);
 						inet_ntop(AF_INET, &client.sin_addr, host, NI_MAXHOST);
 					}
-					c.ip = host;
+					c.ip = host; c.type = sockType[i] ^ 32;
 
 #ifdef Compile_WolfSSL
 					if (sockType[i] & 128) {//SSL
@@ -419,16 +422,23 @@ SSLEnd:
 						c.ssl = ssl;
 					}
 #endif
+					// Do some initialization depending on type of client.
+					if (c.type & 16) {// if h2
+
+					}
+					else {
+						c.streams.emplace_back();
+					}
 					// add client to array(s)
-					pollArray.emplace_back() = { csock, POLLIN, 0 };
-					c.pf = &pollArray[pollcnt]; c.type = sockType[i] ^ 32; 
-					clArray.emplace_back(c); sockType.emplace_back(sockType[i] ^ 32); pollcnt++;
+					pollArray.emplace_back() = { csock, POLLIN, 0 }; c.pf = &pollArray[pollcnt];
+					clArray.emplace_back(c); if (c.type ^ 16) clArray[pollcnt].streams[0].parent = &clArray[pollcnt];
+					sockType.emplace_back(sockType[i] ^ 32); pollcnt++;
 				}
 				else {//client socket
 					for (unsigned char k = 0; k < thrArray.size(); k++) {//Look for free threads
 						if (!threadLock[k]) {// Free thread found, hand work out to it and lock.
 							thrArray[k].shared[0] = i, thrArray[k].shared[1] = 1;
-							clArray[i].pf->events = 0; recv(clArray[i].pf->fd, thrArray[k].buf, 32768, 0);
+							clArray[i].pf->events = 0; thrArray[k].shared[2] = recv(clArray[i].pf->fd, thrArray[k].buf, 32768, 0);
 							threadLock[k] = 1; goto threadDone;
 						}
 					}
@@ -440,7 +450,7 @@ threadDone:
 				for (unsigned char k = 0; k < thrArray.size(); k++) {//Look for free threads
 					if (!threadLock[k]) {// Free thread found, hand work out to it and lock.
 						thrArray[k].shared[0] = i, thrArray[k].shared[1] = 2;
-						clArray[i].pf->events = 0; recv(clArray[i].pf->fd, thrArray[k].buf, 32768, 0);
+						clArray[i].pf->events = 0; thrArray[k].shared[2] = recv(clArray[i].pf->fd, thrArray[k].buf, 32768, 0);
 						threadLock[k] = 1; goto threadDone2;
 					}
 				}

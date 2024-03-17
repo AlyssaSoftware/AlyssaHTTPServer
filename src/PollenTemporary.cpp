@@ -555,7 +555,7 @@ namespace pAlyssaHTTP {
 				fclose(file); if (r->close) shutdown(r->parent->pf->fd, 2); return;
 			}
 			else {
-				r->f = file; r->parent->pf->events = POLLOUT; r->sz = filesize;
+				r->f = file; r->parent->pf->events = POLLIN | POLLOUT; r->sz = filesize;
 			}
 		}
 		else {//File open failed.

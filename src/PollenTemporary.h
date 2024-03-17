@@ -73,3 +73,5 @@ namespace pAlyssaHTTP {
 	extern void Get(requestInfo* r);
 
 }
+
+void AlyssaInitThreads();
