@@ -9,6 +9,7 @@ std::deque<_clientInfo> clArray;
 short srvSocks;//amount of server listening sockets.
 bool srvRunning = 1;//if server is running, it's shutting down if false.
 unsigned int pollcnt;//amount of total sockets.
+SOCKET bastardizedSocket;
 
 namespace pAlyssaHTTP {
 	void ServerHeaders(HeaderParameters* h, requestInfo* r) {
@@ -555,7 +556,7 @@ namespace pAlyssaHTTP {
 				fclose(file); if (r->close) shutdown(r->parent->pf->fd, 2); return;
 			}
 			else {
-				r->f = file; r->parent->pf->events = POLLOUT; r->sz = filesize;
+				r->f = file; r->parent->pf->events = 0; r->sz = filesize;
 			}
 		}
 		else {//File open failed.
@@ -569,8 +570,8 @@ namespace pAlyssaHTTP {
 				ServerHeaders(&h, r);
 		}
 
-		if (r->close) {
+		/*if (r->close) {
 			shutdown(r->parent->pf->fd, 2);
-		}
+		}*/
 	}
 }

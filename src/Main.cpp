@@ -136,6 +136,7 @@ SSLEnd:
 #endif
 
 	if (int ret = AlyssaInit()) return ret;
+	AlyssaInitThreads();
 
 	// After setting sockets successfully, do the initial setup of rest of server
 	SetPredefinedHeaders(); // Define the predefined headers that will used until lifetime of executable and will never change.
@@ -218,6 +219,7 @@ SSLEnd:
 	size_t lastTrash = getTime(); uint8_t trashCount = 0;
 
 	unsigned int events = 0; unsigned int pollcnt = srvSocks; _clientInfo c;
+	clArray.resize(srvSocks);
 
 	while (srvRunning) {
 		/*
@@ -229,7 +231,7 @@ SSLEnd:
 			And it feels like, it's just the poll()en
 		*/
 
-		//		int ActiveSocket = poll(&_SocketArray[0],_SocketArray.size(), -1);
+		//		int ActiveSocket = poll(&_SocketArray[0],_SocketArray.size(), bastardizedSocket);
 		//		if (ActiveSocket < 0) {// Error while polling.
 		//			if (getTime() - lastTrash < 10000) {
 		//				trashCount++;
@@ -366,6 +368,21 @@ SSLEnd:
 		//		if (pollPeriod) Sleep(pollPeriod);
 		//	}
 
+		// Do distribution of clients among clients.
+		if (clArray.size() - srvSocks < 4) {
+			thrArray[0].offset = srvSocks; thrArray[0].sz = clArray.size() - srvSocks;
+			for (int i = 1; i < 4; i++) thrArray[i].sz = 0;
+		}
+		else {
+			int _size = clArray.size() - srvSocks;
+			thrArray[0].offset = srvSocks; thrArray[0].sz = _size/4;
+			if (_size%4)  thrArray[0].sz += _size % 4;
+			for (int i = 1; i < 4; i++) {
+				thrArray[i].offset = thrArray[i - 1].offset + thrArray[i - 1].sz;
+				thrArray[i].sz = _size / 4;
+			}
+		}
+		
 		events = poll(pollArray.data(), pollcnt, -1);
 		if (events < 0) {// Error while polling.
 			if (getTime() - lastTrash < 10000) {
@@ -386,7 +403,10 @@ SSLEnd:
 			break;
 		}
 		for (size_t i = 0; i < pollcnt; i++) {
-			if (pollArray[i].revents & POLLIN) {
+		 if (pollArray[i].revents & POLLHUP) {
+			shutdown(pollArray[i].fd, 2); closesocket(pollArray[i].fd); pollArray[i].fd = bastardizedSocket; // Socket should be set to bastardizedSocket on thread for preventing race condition.
+		}
+			else if (pollArray[i].revents & POLLIN) {
 				SOCKET csock = INVALID_SOCKET;
 				if (i < srvSocks) {//listening socket.
 					char host[NI_MAXHOST] = { 0 }; // Client's IP address
@@ -408,27 +428,49 @@ SSLEnd:
 						int clientSize = sizeof(client);
 #endif						
 						csock = accept(pollArray[i].fd, (sockaddr*)&client, &clientSize);
+						if (csock < 1) std::terminate();
 						inet_ntop(AF_INET, &client.sin_addr, host, NI_MAXHOST);
 					}
-					c.ip = host;
+					c.ip = host; c.type = sockType[i] ^ 32;
 
 #ifdef Compile_WolfSSL
 					if (sockType[i] & 128) {//SSL
 						WOLFSSL* ssl = NULL;
-						if(false){}
+						if (false) {}
 						c.ssl = ssl;
 					}
 #endif
+					// Do some initialization depending on type of client.
+					if (c.type & 16) {// if h2
+
+					}
+					else {
+						c.streams.emplace_back();
+					}
 					// add client to array(s)
-					pollArray.emplace_back() = { csock, POLLIN, 0 };
-					c.pf = &pollArray[pollcnt]; c.type = sockType[i] ^ 32; 
-					clArray.emplace_back(c); sockType.emplace_back(sockType[i] ^ 32); pollcnt++;
-				}
+					bool Added = 0; //cant use goto
+					for (size_t j = srvSocks; j < pollArray.size(); j++) {//Search for an empty space fjrst.
+						if (pollArray[j].fd == bastardizedSocket) {
+							pollArray[j] = { csock, POLLIN, 0 };  c.pf = &pollArray[j];
+							clArray[j].streams.clear(); clArray[j] = c; 
+							if (c.type ^ 16) clArray[j].streams[0].parent = &clArray[j];
+							sockType[j]=(sockType[i] ^ 32); Added = 1;
+						}
+					}
+					// No space, emplace back.
+					if (!Added) {
+						pollArray.emplace_back() = { csock, POLLIN, 0 }; c.pf = &pollArray[pollcnt];
+						clArray.emplace_back(c); if (c.type ^ 16) clArray[pollcnt].streams[0].parent = &clArray[pollcnt];
+						sockType.emplace_back(sockType[i] ^ 32); pollcnt++;
+					}
+			//Added:
+					c.clear();
+			}
 				else {//client socket
 					for (unsigned char k = 0; k < thrArray.size(); k++) {//Look for free threads
 						if (!threadLock[k]) {// Free thread found, hand work out to it and lock.
 							thrArray[k].shared[0] = i, thrArray[k].shared[1] = 1;
-							clArray[i].pf->events = 0; recv(clArray[i].pf->fd, thrArray[k].buf, 32768, 0);
+							clArray[i].pf->events = 0; thrArray[k].shared[2] = recv(clArray[i].pf->fd, thrArray[k].buf, 32768, 0);
 							threadLock[k] = 1; goto threadDone;
 						}
 					}
@@ -437,16 +479,19 @@ threadDone:
 				events--; if (!events) break;
 			}
 			else if (pollArray[i].revents & POLLOUT) {
+				std::terminate();
 				for (unsigned char k = 0; k < thrArray.size(); k++) {//Look for free threads
 					if (!threadLock[k]) {// Free thread found, hand work out to it and lock.
-						thrArray[k].shared[0] = i, thrArray[k].shared[1] = 2;
-						clArray[i].pf->events = 0; recv(clArray[i].pf->fd, thrArray[k].buf, 32768, 0);
+						thrArray[k].shared[0] = i; thrArray[k].shared[1] = 2;
+						clArray[i].pf->events = 0; thrArray[k].shared[2] = recv(clArray[i].pf->fd, thrArray[k].buf, 32768, 0);
 						threadLock[k] = 1; goto threadDone2;
 					}
 				}
 threadDone2:
 				events--; if (!events) break;
 			}
+			else if (pollArray[i].revents & POLLNVAL) { /*std::terminate();*/ 
+			 shutdown(pollArray[i].fd, 2); closesocket(pollArray[i].fd); pollArray[i].fd = bastardizedSocket;}
 		}
 	}
 }

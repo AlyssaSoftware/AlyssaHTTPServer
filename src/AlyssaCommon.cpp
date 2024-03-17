@@ -146,6 +146,7 @@ int AlyssaInit() {
 		}
 #endif // Compile_WolfSSL
 	}
+	bastardizedSocket = socket(AF_INET, SOCK_STREAM, 0);
 	return 0;
 }
 

@@ -6,6 +6,7 @@ struct _clientInfo;
 struct thread {
 	unsigned int* shared;
 	char* buf;
+	unsigned int offset = 0, sz = 0;
 };
 
 typedef struct requestInfo {
@@ -49,6 +50,10 @@ typedef struct _clientInfo {
 	string ip;
 	char flags, type;
 	thread* t = NULL;
+	void clear() {
+		ssl = NULL; pf = NULL; streams.clear();
+		ip.clear(); flags = 0, type = 0, t = NULL;
+	}
 } _clientInfo;
 
 //extern std::deque<std::thread> thrArray;
@@ -65,6 +70,7 @@ extern std::deque<_clientInfo> clArray;
 extern short srvSocks;//amount of server listening sockets.
 extern bool srvRunning;//if server is running, it's shutting down if false.
 extern unsigned int pollcnt;//amount of total sockets.
+extern SOCKET bastardizedSocket;
 
 namespace pAlyssaHTTP {
 	extern void ServerHeaders(HeaderParameters* h, requestInfo* r);
@@ -73,3 +79,5 @@ namespace pAlyssaHTTP {
 	extern void Get(requestInfo* r);
 
 }
+
+void AlyssaInitThreads();
