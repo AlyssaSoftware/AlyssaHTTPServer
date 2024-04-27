@@ -30,3 +30,34 @@
 *.exe
 *.out
 *.app
+*.elf
+
+# WolfSSL user_settings.h file
+user_settings.h
+
+# Secret files
+*.pem
+*.key
+
+# Config files
+*.cfg
+
+# Visual Studio IntelliSense directory
+.vs
+
+# VS output directories
+x64
+Debug
+Release
+
+# Alyssa HTTP Server specific stuff
+htroot
+Alyssa.log
+
+# macOS persistent storage(?) stuff
+._*
+.DS_Store
+
+# Compiled resources
+*.res
+*.aps

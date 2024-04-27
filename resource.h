@@ -1,8 +1,9 @@
 //{{NO_DEPENDENCIES}}
-// Microsoft Visual C++ generated include file.
-// Used by Alyssa.rc
+// Microsoft Visual C++ içerme dosyasý oluþturdu.
+// Alyssa.rc tarafýndan kullanýlmýþ
+//
 
-// Yeni nesneler için sonraki varsayýlan deðerler
+// Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
